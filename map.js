@@ -115,6 +115,20 @@ function MapRenderer() {
     this._brush = CANVAS.getContext("2d");
     this.color = "#000000";
 
+    this._queue = new Map();
+
+    this.apply = function() {
+        RENDERER.clear();
+        
+        for (let arr of this._queue.values()) {
+            for (let i = 0; i < arr.length; ++i) {
+                arr[i].func.apply(this, arr[i].args);
+            }
+        }
+
+        this._queue.clear();
+    }
+
     this.clear = function clear() {
         this._brush.clearRect(0, 0, CANVAS.width, CANVAS.height);
     }
@@ -132,6 +146,14 @@ function MapRenderer() {
         this._brush.beginPath();
         this._brush.fillRect(pos.x, pos.y, width / MAIN_CAMERA.scale, height / MAIN_CAMERA.scale);
         this._brush.fill();
+    }
+
+    this.strokeRect = function(position, width, height, color = this.color) {
+        let pos = MAIN_CAMERA.toPixelCoords(position);
+        this._brush.strokeStyle = color;
+        this._brush.beginPath();
+        this._brush.strokeRect(pos.x, pos.y, width / MAIN_CAMERA.scale, height / MAIN_CAMERA.scale);
+        this._brush.stroke();
     }
 
     /**
@@ -158,6 +180,25 @@ function MapRenderer() {
         this._brush.fill();
     }
 
+    this.strokePoligon = function(points, color = this.color) {
+        this._brush.strokeStyle = color;
+        this._brush.beginPath();
+
+        let pos;
+        
+        if (points.length > 0) {
+            pos = MAIN_CAMERA.toPixelCoords(points[0]);
+            this._brush.moveTo(pos.x, pos.y);
+        }
+
+        for (let i = 0; i < points.length; ++i) {
+            pos = MAIN_CAMERA.toPixelCoords(points[i]);
+            this._brush.lineTo(pos.x, pos.y);
+        }
+
+        this._brush.stroke();
+    }
+
     /**
      * Рисует долю круга (или весь) на основе мировых координат
      * @param {Vector} position 
@@ -172,6 +213,14 @@ function MapRenderer() {
         this._brush.beginPath();
         this._brush.arc(pos.x, pos.y, radius / MAIN_CAMERA.scale, startAngle, endAngle);
         this._brush.fill();
+    }
+
+    this.strokeArc = function(position, radius, startAngle = 0, endAngle = 2 * Math.PI, color = this.color) {
+        let pos = MAIN_CAMERA.toPixelCoords(position);
+        this._brush.strokeStyle = color;
+        this._brush.beginPath();
+        this._brush.arc(pos.x, pos.y, radius / MAIN_CAMERA.scale, startAngle, endAngle);
+        this._brush.stroke();
     }
     /**
      * 
@@ -190,7 +239,19 @@ function MapRenderer() {
 
         this._brush.beginPath();
         this._brush.fillText(text, pos.x, pos.y);
-        console.log(position);
+    }
+
+    /**
+     * Добавляет функцию отрисовки в поток отрисовки с определённым индексом
+     * @param {number} zIndex 
+     * @param {Function} func 
+     * @param {Array} args 
+     */
+    this.addToQueue = function(zIndex, func, args) {
+        if (!this._queue.has(-zIndex)) {
+            this._queue.set(-zIndex, []);
+        }
+        this._queue.get(-zIndex).push({func: func, args: args});
     }
 }
 
@@ -212,16 +273,23 @@ function City(id, name, x, y, radius) {
 
     this.name = name;
     this.id = id;
-    this.color = "#66ff0044";
+    this.color = "#";
+
+    let letters = "0123456789ab";
+    for (var i = 0; i < 6; ++i)
+        this.color += letters[Math.floor(Math.random() * letters.length)];
+    this.color += "66";
 
     this.render = function() {
         let sz = 3;
-        RENDERER.fillArc(this.transform.position, this.radius, 0, 2 * Math.PI, this.color);
+        RENDERER.addToQueue(100, RENDERER.fillArc, [this.transform.position, this.radius, 0, 2 * Math.PI, this.color]);
         
-        RENDERER.fillArc(this.transform.position, (sz + 1) * MAIN_CAMERA.scale);
-        RENDERER.fillArc(this.transform.position, sz * MAIN_CAMERA.scale, 0, 2 * Math.PI, color = "#ffffff");
+        RENDERER.addToQueue(3, RENDERER.strokeArc, [this.transform.position, (sz + 1) * MAIN_CAMERA.scale]);
+        RENDERER.addToQueue(4, RENDERER.fillArc, [this.transform.position, sz * MAIN_CAMERA.scale,
+            0, 2 * Math.PI, color = "#ffffff"]);
         
-        RENDERER.writeText(plusVectors(this.transform.position, new Vector(0, -10 * MAIN_CAMERA.scale)), this.name);
+        RENDERER.addToQueue(0, RENDERER.writeText, [plusVectors(this.transform.position, new Vector(0, -10 * MAIN_CAMERA.scale)),
+            this.name]);
     }
 }
 
@@ -230,13 +298,15 @@ window.onload = function main() {
     CITIES.push(new City(1, "Нонхейм", -5180, -5180, 2000));
     CITIES.push(new City(2, "Спавн", 0, 0, 500));
     CITIES.push(new City(3, "Trard", -1100, -850, 2000));
+    CITIES.push(new City(4, "Драгонленд", -3800, -1300, 1000));
     
     setInterval(() => {
-        RENDERER.clear();
         for (let i = 0; i < CITIES.length; ++i) {
             CITIES[i].render();
         }
+        RENDERER.apply();
     }, 10);
+        
 }
 
 const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0)};
