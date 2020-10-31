@@ -264,7 +264,7 @@ window.onresize = function() {
 //#endregion
 
 const MAIN_CAMERA = new Camera(0, 0, 10);
-const CITIES = [];
+const OBJECTS = [];
 
 
 function City(id, name, x, y, radius) {
@@ -295,14 +295,14 @@ function City(id, name, x, y, radius) {
 
 window.onload = function main() {
     window.onresize();
-    CITIES.push(new City(1, "Нонхейм", -5180, -5180, 2000));
-    CITIES.push(new City(2, "Спавн", 0, 0, 500));
-    CITIES.push(new City(3, "Trard", -1100, -850, 2000));
-    CITIES.push(new City(4, "Драгонленд", -3800, -1300, 1000));
+    OBJECTS.push(new City(1, "Нонхейм", -5180, -5180, 2000));
+    OBJECTS.push(new City(2, "Спавн", 0, 0, 500));
+    OBJECTS.push(new City(3, "Trard", -1100, -850, 2000));
+    OBJECTS.push(new City(4, "Драгонленд", -3800, -1300, 1000));
     
     setInterval(() => {
-        for (let i = 0; i < CITIES.length; ++i) {
-            CITIES[i].render();
+        for (let i = 0; i < OBJECTS.length; ++i) {
+            OBJECTS[i].render();
         }
         RENDERER.apply();
     }, 10);
