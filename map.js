@@ -265,6 +265,7 @@ window.onresize = function() {
 
 const MAIN_CAMERA = new Camera(0, 0, 10);
 const OBJECTS = [];
+let SELECT_POINT = new SelectPoint(0, 0);
 
 
 function City(id, name, x, y, radius) {
@@ -293,12 +294,65 @@ function City(id, name, x, y, radius) {
     }
 }
 
+function SelectPoint(x, y) {
+    this.transform = new Transform(x, y);
+    this.active = false;
+
+    this.findNearest = function(objects) {
+        const MAX_DISTANCE = 100;
+        let obj = null;
+        let pixelPosition = MAIN_CAMERA.toPixelCoords(this.transform.position);
+        let dist = Infinity;
+        for (let i = 0; i < objects.length; ++i) {
+            let newDist = getDistance(pixelPosition,
+                MAIN_CAMERA.toPixelCoords(objects[i].transform.position));
+            if (this != objects[i] && (obj == null || newDist < dist) && newDist <= MAX_DISTANCE) {
+                obj = objects[i];
+                dist = newDist;
+            }
+        }
+        if (obj != null) {
+            this.transform.position = new Vector(obj.transform.position.x, obj.transform.position.y);
+        }
+        return obj;
+    }
+
+    this.render = function() {
+        if (this.active) {
+            RENDERER.addToQueue(-1, function(position, color="#ff0000") {
+                const DELTA_X = 10;
+                const DELTA_Y = 20;
+                let pos = MAIN_CAMERA.toPixelCoords(position);
+
+                this._brush.strokeStyle = "#555555";
+                this._brush.fillStyle = color;
+
+                this._brush.beginPath();
+                this._brush.moveTo(pos.x, pos.y);
+                this._brush.lineTo(pos.x - DELTA_X, pos.y - DELTA_Y);
+                this._brush.arc(pos.x, pos.y - DELTA_Y, DELTA_X, Math.PI, - 2 * Math.PI);
+                this._brush.lineTo(pos.x, pos.y);
+                this._brush.fill();
+                this._brush.stroke();
+
+                this._brush.fillStyle = "#ffffff";
+                
+                this._brush.beginPath();
+                this._brush.arc(pos.x, pos.y - DELTA_Y, DELTA_X / 2, 0, 2 * Math.PI);
+                this._brush.fill();
+                this._brush.stroke();
+            }, [this.transform.position]);
+        }
+    }
+}
+
 window.onload = function main() {
     window.onresize();
     OBJECTS.push(new City(1, "Нонхейм", -5180, -5180, 2000));
     OBJECTS.push(new City(2, "Спавн", 0, 0, 500));
     OBJECTS.push(new City(3, "Trard", -1100, -850, 2000));
     OBJECTS.push(new City(4, "Драгонленд", -3800, -1300, 1000));
+    OBJECTS.push(SELECT_POINT);
     
     setInterval(() => {
         for (let i = 0; i < OBJECTS.length; ++i) {
@@ -309,14 +363,15 @@ window.onload = function main() {
         
 }
 
-const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0)};
+const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0), downPosition: new Vector(0, 0)};
 
-CANVAS.onmousedown = function(event) {
+window.onmousedown = function(event) {
     CAMERA_MOVEMENT.active = true;
     CAMERA_MOVEMENT.lastPosition = new Vector(event.clientX, event.clientY);
+    CAMERA_MOVEMENT.downPosition = new Vector(event.clientX, event.clientY);
 }
 
-CANVAS.onmousemove = function(event) {
+window.onmousemove = function(event) {
     if (CAMERA_MOVEMENT.active) {
         let mousePosition = new Vector(event.clientX, event.clientY);
 
@@ -329,11 +384,17 @@ CANVAS.onmousemove = function(event) {
     }
 }
 
-CANVAS.onmouseup = function() {
+window.onmouseup = function(event) {
     CAMERA_MOVEMENT.active = false;
+    let upPosition = new Vector(event.clientX, event.clientY);
+
+    const EPS = 1e-7;
+    if (getDistance(CAMERA_MOVEMENT.downPosition, upPosition) <= EPS) {
+        onCustomClicked(event);
+    }
 }
 
-CANVAS.onwheel = function(event) {
+window.onwheel = function(event) {
     const DELTA = .2;
     const LOW = 0;
     const HIGH = 100;
@@ -343,4 +404,27 @@ CANVAS.onwheel = function(event) {
         MAIN_CAMERA.scale += (-direction * DELTA * MAIN_CAMERA.scale);
     }
 
+}
+
+function getInformation(object) {
+    let request = new XMLHttpRequest();
+    request.open("GET", "get-info.php", true);
+    request.addEventListener('readystatechange', function() {
+        if (request.readyState == 4 && request.status == 200) {
+            let a = request.responseXML.getElementsByTagName("talk")[0];
+            console.log(a.textContent);
+            console.log(request);
+        }
+    });
+    request.send();
+}
+
+function onCustomClicked(event) {
+    console.log("clicked!");
+    SELECT_POINT.transform.position = MAIN_CAMERA.toWorldCoords(new Vector(event.clientX, event.clientY));
+    SELECT_POINT.active = !SELECT_POINT.active;
+    let foundedObject = SELECT_POINT.findNearest(OBJECTS);
+    if (foundedObject != null) {
+        getInformation(foundedObject);
+    }
 }
