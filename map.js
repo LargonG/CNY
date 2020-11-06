@@ -4,91 +4,114 @@
 
 const CANVAS_ID = "map";
 const CANVAS = document.getElementById(CANVAS_ID);
-const RENDERER = new MapRenderer();
 
 //#region Driver
 
 /**
  * Является одновременно и точкой, и координатой, и вектором
- * @param {number} x 
- * @param {number} y 
  */
-function Vector(x, y) {
-    this.x = x;
-    this.y = y;
+class Vector {
+    /**
+     * @param {number} x 
+     * @param {number} y 
+     */
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
 
-    this.getMagnitude = () => {
+    /**
+     * Возвращает длину вектора
+     */
+    get magnitude() {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     }
 
-    this.normalize = () => {
-        let magnitude = this.getMagnitude();
+    /**
+     * Нормализирует размер вектора (делает его равным 1)
+     */
+    normalize() {
+        let magnitude = this.magnitude;
         if (magnitude > 0) {
             this.x /= magnitude * 1.0;
             this.y /= magnitude * 1.0;
         }
     }
-}
 
-function plusVectors(a, b) {
-    return new Vector(a.x + b.x, a.y + b.y);
-}
+    // STATIC
 
-function minesVectors(a, b) {
-    return new Vector(a.x - b.x, a.y - b.y);
+    static plus(a, b) {
+        return new Vector(a.x + b.x, a.y + b.y);
+    }
+
+    static mines(a, b) {
+        return new Vector(a.x - b.x, a.y - b.y);
+    }
+
+    /**
+     * Скалярное произведение векторов
+     * @param {Vector} a 
+     * @param {Vector} b 
+     */
+    static dotProduct(a, b) {
+        return a.x * b.x + a.y * b.y;
+    }
+
+    /**
+     * Векторное произведение векторов
+     * @param {Vector} a 
+     * @param {Vector} b 
+     */
+    static crossProduct(a, b) {
+        return a.x * b.y - a.y * b.x;
+    }
+
+    /**
+     * Возвращает угол между векторами
+     * @param {Vector} a 
+     * @param {Vector} b 
+     */
+    static angle(a, b) {
+        return Math.atan2(getCrossProduct(a, b), getDotProduct(a, b)); // WARNING: может работать не так, как предполагается
+    }
+
+    /**
+     * Возвращает расстояние между точками
+     * @param {Vector} a 
+     * @param {Vector} b 
+     */
+    static distance(a, b) {
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 }
 
 /**
- * Скалярное произведение векторов
- * @param {Vector} a 
- * @param {Vector} b 
+ * Координатные данные объекта
  */
-function getDotProduct(a, b) {
-    return a.x * b.x + a.y * b.y;
+class Transform {
+    /**
+     * 
+     * @param {number} x 
+     * @param {number} y 
+     */
+    constructor(x, y) {
+        this.position = new Vector(x, y);
+    }
 }
 
-/**
- * Векторное произведение векторов
- * @param {Vector} a 
- * @param {Vector} b 
- */
-function getCrossProduct(a, b) {
-    return a.x * b.y - a.y * b.x;
-}
-
-/**
- * Возвращает угол между векторами
- * @param {Vector} a 
- * @param {Vector} b 
- */
-function getAngle(a, b) {
-    return Math.atan2(getCrossProduct(a, b), getDotProduct(a, b)); // WARNING: может работать не так, как предполагается
-}
-
-/**
- * Возвращает расстояние между точками
- * @param {Vector} a 
- * @param {Vector} b 
- */
-function getDistance(a, b) {
-    let dx = b.x - a.x;
-    let dy = b.y - a.y;
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-function Transform(x, y) {
-    this.position = new Vector(x, y);
-}
-
-function Camera(x, y, scale) {
-    this.transform = new Transform(x, y);
-    this.scale = scale;
+class Camera {
+    constructor(x, y, scale) {
+        this.transform = new Transform(x, y);
+        this.scale = scale;
+    }
 
     /**
      * Convert pixel coords to world tile coords
      * @param {Vector} position 
      */
-    this.toWorldCoords = function(position) {
+    toWorldCoords(position) {
         return new Vector(
             (position.x - CANVAS.width / 2.0) * this.scale + this.transform.position.x,
             (position.y - CANVAS.height / 2.0) * this.scale + this.transform.position.y
@@ -99,7 +122,7 @@ function Camera(x, y, scale) {
      * Convert world tile coords to pixel coords
      * @param {Vector} position 
      */
-    this.toPixelCoords = function(position) {
+    toPixelCoords(position) {
         return new Vector(
             (position.x - this.transform.position.x) / this.scale + CANVAS.width / 2,
             (position.y - this.transform.position.y) / this.scale + CANVAS.height / 2
@@ -111,13 +134,21 @@ function Camera(x, y, scale) {
  * Оболочка над обыной context canvas.
  * Здесь учитывается камера пользователя, указваются сразу мировые координаты.
  */
-function MapRenderer() {
-    this._brush = CANVAS.getContext("2d");
-    this.color = "#000000";
+class MapRenderer {
+    #_brush;
+    #_queue;
+    constructor() {
+        this._brush = CANVAS.getContext("2d");
+        this.color = "#000000";
 
-    this._queue = new Map();
+        this._queue = new Map();
 
-    this.apply = function() {
+    }
+    
+    /**
+     * Отрисовывает все объекты в очереди
+     */
+    apply() {
         RENDERER.clear();
         
         for (let arr of this._queue.values()) {
@@ -129,7 +160,10 @@ function MapRenderer() {
         this._queue.clear();
     }
 
-    this.clear = function clear() {
+    /**
+     * Очищает холст
+     */
+    clear() {
         this._brush.clearRect(0, 0, CANVAS.width, CANVAS.height);
     }
 
@@ -140,7 +174,7 @@ function MapRenderer() {
      * @param {number} height 
      * @param {string} color 
      */
-    this.fillRect = function(position, width, height, color = this.color) {
+    fillRect(position, width, height, color = this.color) {
         let pos = MAIN_CAMERA.toPixelCoords(position);
         this._brush.fillStyle = color;
         this._brush.beginPath();
@@ -148,7 +182,14 @@ function MapRenderer() {
         this._brush.fill();
     }
 
-    this.strokeRect = function(position, width, height, color = this.color) {
+    /**
+     * Рисует очертание квадрата на основе мировых точек
+     * @param {Vector} position 
+     * @param {number} width 
+     * @param {number} height 
+     * @param {string} color 
+     */
+    strokeRect(position, width, height, color = this.color) {
         let pos = MAIN_CAMERA.toPixelCoords(position);
         this._brush.strokeStyle = color;
         this._brush.beginPath();
@@ -161,7 +202,7 @@ function MapRenderer() {
      * @param {Array<Vector>} points 
      * @param {string} color 
      */
-    this.fillPoligon = function(points, color = this.color) {
+    fillPoligon(points, color = this.color) {
         this._brush.fillStyle = color;
         this._brush.beginPath();
 
@@ -180,7 +221,12 @@ function MapRenderer() {
         this._brush.fill();
     }
 
-    this.strokePoligon = function(points, color = this.color) {
+    /**
+     * Рисует очертание полигона (линию) на основе мировых точек
+     * @param {Array<Vector>} points 
+     * @param {string} color 
+     */
+    strokePoligon(points, color = this.color) {
         this._brush.strokeStyle = color;
         this._brush.beginPath();
 
@@ -207,7 +253,7 @@ function MapRenderer() {
      * @param {number} endAngle 
      * @param {string} color 
      */
-    this.fillArc = function(position, radius, startAngle = 0, endAngle = 2 * Math.PI, color = this.color) {
+    fillArc(position, radius, startAngle = 0, endAngle = 2 * Math.PI, color = this.color) {
         let pos = MAIN_CAMERA.toPixelCoords(position);
         this._brush.fillStyle = color;
         this._brush.beginPath();
@@ -215,7 +261,15 @@ function MapRenderer() {
         this._brush.fill();
     }
 
-    this.strokeArc = function(position, radius, startAngle = 0, endAngle = 2 * Math.PI, color = this.color) {
+    /**
+     * Рисует долю окружности на основе мировых точек
+     * @param {Vector} position 
+     * @param {number} radius 
+     * @param {number} startAngle 
+     * @param {number} endAngle 
+     * @param {string} color 
+     */
+    strokeArc(position, radius, startAngle = 0, endAngle = 2 * Math.PI, color = this.color) {
         let pos = MAIN_CAMERA.toPixelCoords(position);
         this._brush.strokeStyle = color;
         this._brush.beginPath();
@@ -229,7 +283,7 @@ function MapRenderer() {
      * @param {string} align 
      * @param {string} color 
      */
-    this.writeText = function(position, text, align = "center", color = "#000000") {
+    writeText(position, text, align = "center", color = "#000000") {
         let textSize = 18;
         this._brush.font = "bold " + textSize.toString() + "px Arial";
         this._brush.fillStyle = color;
@@ -242,12 +296,12 @@ function MapRenderer() {
     }
 
     /**
-     * Добавляет функцию отрисовки в поток отрисовки с определённым индексом
+     * Добавляет функцию отрисовки в очередь отрисовки с определённым приоритетом
      * @param {number} zIndex 
      * @param {Function} func 
      * @param {Array} args 
      */
-    this.addToQueue = function(zIndex, func, args) {
+    addToQueue(zIndex, func, args) {
         if (!this._queue.has(-zIndex)) {
             this._queue.set(-zIndex, []);
         }
@@ -261,50 +315,56 @@ window.onresize = function() {
     CANVAS.height = window.innerHeight;
 }
 
+const RENDERER = new MapRenderer();
+
 //#endregion
 
 const MAIN_CAMERA = new Camera(0, 0, 10);
 const OBJECTS = [];
-let SELECT_POINT = new SelectPoint(0, 0);
 
+class City {
+    constructor(id, name, x, y, radius) {
+        this.transform = new Transform(x, y);
+        this.radius = radius;
 
-function City(id, name, x, y, radius) {
-    this.transform = new Transform(x, y);
-    this.radius = radius;
+        this.name = name;
+        this.id = id;
+        this.color = "#";
 
-    this.name = name;
-    this.id = id;
-    this.color = "#";
+        let letters = "0123456789ab";
+        for (var i = 0; i < 6; ++i)
+            this.color += letters[Math.floor(Math.random() * letters.length)];
+        this.color += "66";
+    }
+    
 
-    let letters = "0123456789ab";
-    for (var i = 0; i < 6; ++i)
-        this.color += letters[Math.floor(Math.random() * letters.length)];
-    this.color += "66";
-
-    this.render = function() {
+    render() {
         let sz = 3;
         RENDERER.addToQueue(100, RENDERER.fillArc, [this.transform.position, this.radius, 0, 2 * Math.PI, this.color]);
         
         RENDERER.addToQueue(3, RENDERER.strokeArc, [this.transform.position, (sz + 1) * MAIN_CAMERA.scale]);
         RENDERER.addToQueue(4, RENDERER.fillArc, [this.transform.position, sz * MAIN_CAMERA.scale,
-            0, 2 * Math.PI, color = "#ffffff"]);
+            0, 2 * Math.PI, "#ffffff"]);
         
-        RENDERER.addToQueue(0, RENDERER.writeText, [plusVectors(this.transform.position, new Vector(0, -10 * MAIN_CAMERA.scale)),
+        RENDERER.addToQueue(0, RENDERER.writeText, [Vector.plus(this.transform.position, new Vector(0, -10 * MAIN_CAMERA.scale)),
             this.name]);
     }
 }
 
-function SelectPoint(x, y) {
-    this.transform = new Transform(x, y);
-    this.active = false;
+class SelectPoint {
+    constructor(x, y) {
+        this.transform = new Transform(x, y);
+        this.active = false;
+    }
+    
 
-    this.findNearest = function(objects) {
+    findNearest(objects) {
         const MAX_DISTANCE = 100;
         let obj = null;
         let pixelPosition = MAIN_CAMERA.toPixelCoords(this.transform.position);
         let dist = Infinity;
         for (let i = 0; i < objects.length; ++i) {
-            let newDist = getDistance(pixelPosition,
+            let newDist = Vector.distance(pixelPosition,
                 MAIN_CAMERA.toPixelCoords(objects[i].transform.position));
             if (this != objects[i] && (obj == null || newDist < dist) && newDist <= MAX_DISTANCE) {
                 obj = objects[i];
@@ -317,7 +377,7 @@ function SelectPoint(x, y) {
         return obj;
     }
 
-    this.render = function() {
+    render() {
         if (this.active) {
             RENDERER.addToQueue(-1, function(position, color="#ff0000") {
                 const DELTA_X = 10;
@@ -346,6 +406,8 @@ function SelectPoint(x, y) {
     }
 }
 
+let SELECT_POINT = new SelectPoint(0, 0);
+
 window.onload = function main() {
     window.onresize();
     OBJECTS.push(new City(1, "Нонхейм", -5180, -5180, 2000));
@@ -363,9 +425,9 @@ window.onload = function main() {
         
 }
 
-const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0), downPosition: new Vector(0, 0)};
+const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0), downPosition: new Vector(0, 0), clickedOnCanvas: false};
 
-window.onmousedown = function(event) {
+CANVAS.onmousedown = function(event) {
     CAMERA_MOVEMENT.active = true;
     CAMERA_MOVEMENT.lastPosition = new Vector(event.clientX, event.clientY);
     CAMERA_MOVEMENT.downPosition = new Vector(event.clientX, event.clientY);
@@ -389,7 +451,7 @@ window.onmouseup = function(event) {
     let upPosition = new Vector(event.clientX, event.clientY);
 
     const EPS = 1e-7;
-    if (getDistance(CAMERA_MOVEMENT.downPosition, upPosition) <= EPS) {
+    if (Vector.distance(CAMERA_MOVEMENT.downPosition, upPosition) <= EPS) {
         onCustomClicked(event);
     }
 }
@@ -408,19 +470,24 @@ window.onwheel = function(event) {
 
 function getInformation(object) {
     let request = new XMLHttpRequest();
-    request.open("GET", "get-info.php", true);
+    request.open("GET", "get-info.php?id=" + object.id, true);
     request.addEventListener('readystatechange', function() {
         if (request.readyState == 4 && request.status == 200) {
-            let a = request.responseXML.getElementsByTagName("talk")[0];
-            console.log(a.textContent);
-            console.log(request);
+            writeInformation(request.responseXML);
         }
     });
     request.send();
 }
 
+function writeInformation(objectXML = null) {
+    let list = ["name", "owner", "admit", "type", "desc", "x", "z", "size"];
+    for (let i = 0; i < list.length; ++i) {
+        document.getElementById("city-" + list[i]).innerText = (objectXML == null ? "" :
+        objectXML.getElementsByTagName(list[i])[0].textContent);
+    }
+}
+
 function onCustomClicked(event) {
-    console.log("clicked!");
     SELECT_POINT.transform.position = MAIN_CAMERA.toWorldCoords(new Vector(event.clientX, event.clientY));
     SELECT_POINT.active = !SELECT_POINT.active;
     let foundedObject = SELECT_POINT.findNearest(OBJECTS);
