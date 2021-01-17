@@ -5,15 +5,15 @@
 
     $id = intval($_GET["id"]);
 
-    $city = array();
-    $city["name"] = "Нонхейм";
-    $city["owner"] = "Нонхеймская социалистическая республика";
-    $city["x"] = -5180;
-    $city["z"] = -5180;
-    $city["size"] = 2000;
-    $city["admit"] = "Общедоступно";
-    $city["type"] = "Город";
-    $city["description"] = "Столица Нонхеймской федерации";
+    $pdo = require $_SERVER['DOCUMENT_ROOT'].'/database/db-connect.php';
+
+    $getInfo = 'SELECT * FROM `cities` WHERE `id`=:id';
+
+    $stmt = $pdo->prepare($getInfo);
+    $stmt->execute([
+        'id' => $id
+    ]);
+    $city = $stmt->fetch();
 
     echo "<?xml version='1.0' encoding='UTF-8' ?>";
     echo "<body>";
@@ -24,7 +24,5 @@
     echo "<size>".$city['size']."</size>";
     echo "<admit>".$city['admit']."</admit>";
     echo "<type>".$city['type']."</type>";
-    echo "<desc>".$city['description']."</desc>";
+    echo "<desc>".html_entity_decode($city['description'])."</desc>";
     echo "</body>";
-
-?>

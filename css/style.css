@@ -1,3 +1,9 @@
+:root {
+    --default-padding: 7.5px;
+    --infobar-width: 400px;
+    --infobar-close-width: 0px;
+}
+
 #map {
     display: block;
     position: absolute;
@@ -8,10 +14,11 @@
 
 .infobar-container {
     position: absolute;
-    width: 500px;
-    top: 7.5px;
-    left: 7.5px;
-    bottom: 7.5px;
+    width: var(--infobar-width);
+    top: var(--default-padding);
+    left: var(--default-padding);
+    bottom: var(--default-padding);
+    transition: .5s;
 }
 
 .infobar-description {
@@ -21,4 +28,18 @@
 
 body, html {
     min-width: 750px;
+}
+
+#toggle {
+    position: absolute;
+    left: calc(var(--infobar-width));
+    top: 50vh;
+}
+
+#open {
+    left: var(--default-padding);
+}
+
+#close {
+    left: calc(var(--infobar-close-width) - var(--infobar-width));
 }

@@ -1,3 +1,4 @@
+<? require $_SERVER['DOCUMENT_ROOT'].'/database/db-connect.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +7,7 @@
     <title>Карта СП</title>
 </head>
 <body>
-    <div class="infobar-container bg-light rounded border">
+    <div class="infobar-container bg-light rounded border" id="close">
         
         <div class="infobar-search form-group p-2">
             <input class="form-control shadow" type="search" id="search">
@@ -31,6 +32,17 @@
             </div>
             
             <div class="font-italic"><span class="h6">Описание:</span><div id="city-desc"></div></div>
+
+            <button class="btn btn-primary font-weight-bolder" id="toggle">></button>
+            <script>
+                let open = false;
+                document.getElementById("toggle").onclick = function() {
+                    let element = document.getElementById(open ? "open" : "close");
+                    element.id = open ? "close" : "open";
+                    this.innerText = open ? ">" : "<";
+                    open = !open;
+                }
+            </script>
 
         </div>
     </div>

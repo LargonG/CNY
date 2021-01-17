@@ -135,8 +135,8 @@ class Camera {
  * Здесь учитывается камера пользователя, указваются сразу мировые координаты.
  */
 class MapRenderer {
-    #_brush;
-    #_queue;
+    _brush;
+    _queue;
     constructor() {
         this._brush = CANVAS.getContext("2d");
         this.color = "#000000";
@@ -150,6 +150,8 @@ class MapRenderer {
      */
     apply() {
         RENDERER.clear();
+
+        this._queue = new Map([...this._queue.entries()].sort());
         
         for (let arr of this._queue.values()) {
             for (let i = 0; i < arr.length; ++i) {
@@ -331,7 +333,7 @@ class City {
         this.id = id;
         this.color = "#";
 
-        let letters = "0123456789ab";
+        let letters = "789abcdef";
         for (var i = 0; i < 6; ++i)
             this.color += letters[Math.floor(Math.random() * letters.length)];
         this.color += "66";
@@ -366,7 +368,7 @@ class SelectPoint {
         for (let i = 0; i < objects.length; ++i) {
             let newDist = Vector.distance(pixelPosition,
                 MAIN_CAMERA.toPixelCoords(objects[i].transform.position));
-            if (this != objects[i] && (obj == null || newDist < dist) && newDist <= MAX_DISTANCE) {
+            if (this !== objects[i] && (obj == null || newDist < dist) && newDist <= MAX_DISTANCE) {
                 obj = objects[i];
                 dist = newDist;
             }
@@ -410,10 +412,28 @@ let SELECT_POINT = new SelectPoint(0, 0);
 
 window.onload = function main() {
     window.onresize();
-    OBJECTS.push(new City(1, "Нонхейм", -5180, -5180, 2000));
-    OBJECTS.push(new City(2, "Спавн", 0, 0, 500));
-    OBJECTS.push(new City(3, "Trard", -1100, -850, 2000));
-    OBJECTS.push(new City(4, "Драгонленд", -3800, -1300, 1000));
+    let request = new XMLHttpRequest();
+    request.open("GET", "get-list.php", true);
+    request.addEventListener("readystatechange", function () {
+
+        if (request.readyState === 4 && request.status === 200) {
+            let params = ["id", "name", "x", "z", "size"];
+            let cities = request.responseXML.getElementsByTagName("city");
+            for (let i = 0; i < cities.length; ++i) {
+                let cityParams = new Map();
+                for (let j = 0; j < params.length; ++j) {
+                    cityParams.set(params[j], cities[i].getElementsByTagName(params[j])[0].textContent);
+                }
+                let id = parseInt(cityParams.get("id"));
+                let x = parseInt(cityParams.get("x"));
+                let y = parseInt(cityParams.get("z"));
+                let size = parseInt(cityParams.get("size"));
+                let city = new City(id, cityParams.get("name"), x, y, size);
+                OBJECTS.push(city);
+            }
+        }
+    });
+    request.send();
     OBJECTS.push(SELECT_POINT);
     
     setInterval(() => {
@@ -425,7 +445,12 @@ window.onload = function main() {
         
 }
 
-const CAMERA_MOVEMENT = {active: false, lastPosition: new Vector(0, 0), downPosition: new Vector(0, 0), clickedOnCanvas: false};
+const CAMERA_MOVEMENT = {
+    active: false,
+    lastPosition: new Vector(0, 0),
+    downPosition: new Vector(0, 0),
+    clickedOnCanvas: false
+};
 
 CANVAS.onmousedown = function(event) {
     CAMERA_MOVEMENT.active = true;
@@ -472,7 +497,7 @@ function getInformation(object) {
     let request = new XMLHttpRequest();
     request.open("GET", "get-info.php?id=" + object.id, true);
     request.addEventListener('readystatechange', function() {
-        if (request.readyState == 4 && request.status == 200) {
+        if (request.readyState === 4 && request.status === 200) {
             writeInformation(request.responseXML);
         }
     });
@@ -490,8 +515,12 @@ function writeInformation(objectXML = null) {
 function onCustomClicked(event) {
     SELECT_POINT.transform.position = MAIN_CAMERA.toWorldCoords(new Vector(event.clientX, event.clientY));
     SELECT_POINT.active = !SELECT_POINT.active;
-    let foundedObject = SELECT_POINT.findNearest(OBJECTS);
-    if (foundedObject != null) {
-        getInformation(foundedObject);
+    if (SELECT_POINT.active) {
+        let foundedObject = SELECT_POINT.findNearest(OBJECTS);
+        if (foundedObject != null) {
+            getInformation(foundedObject);
+        }
+    } else {
+        writeInformation(null);
     }
 }
