@@ -72,7 +72,7 @@ class Vector {
      * @param {Vector} b 
      */
     static angle(a, b) {
-        return Math.atan2(getCrossProduct(a, b), getDotProduct(a, b)); // WARNING: может работать не так, как предполагается
+        return Math.atan2(crossProduct(a, b), dotProduct(a, b)); // WARNING: может работать не так, как предполагается
     }
 
     /**
