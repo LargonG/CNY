@@ -1,11 +1,12 @@
 /*
 
 */
+"use strict"
 
 const CANVAS_ID = "map";
 const CANVAS = document.getElementById(CANVAS_ID);
 
-//#region Driver
+//#region Engine
 
 /**
  * Является одновременно и точкой, и координатой, и вектором
@@ -291,7 +292,7 @@ class MapRenderer {
         this._brush.fillStyle = color;
         this._brush.textAlign = align;
 
-        var pos = MAIN_CAMERA.toPixelCoords(position);
+        let pos = MAIN_CAMERA.toPixelCoords(position);
 
         this._brush.beginPath();
         this._brush.fillText(text, pos.x, pos.y);
@@ -334,7 +335,7 @@ class City {
         this.color = "#";
 
         let letters = "789abcdef";
-        for (var i = 0; i < 6; ++i)
+        for (let i = 0; i < 6; ++i)
             this.color += letters[Math.floor(Math.random() * letters.length)];
         this.color += "66";
     }
@@ -486,7 +487,7 @@ window.onwheel = function(event) {
     const LOW = 0;
     const HIGH = 100;
 
-    var direction = (event.wheelDelta > 0 ? 1 : -1);
+    let direction = (event.wheelDelta > 0 ? 1 : -1);
     if (LOW < MAIN_CAMERA.scale + DELTA * -direction && MAIN_CAMERA.scale + DELTA * MAIN_CAMERA.scale * -direction <= HIGH) {
         MAIN_CAMERA.scale += (-direction * DELTA * MAIN_CAMERA.scale);
     }
